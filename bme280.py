@@ -1,59 +1,56 @@
+import spidev
 import json
-import os
 from datetime import datetime, timezone
+import os
+
+from adafruit_bme280 import basic
 import board, busio
 from digitalio import DigitalInOut
-from adafruit_bme280 import basic
 
 # Load config
-CONFIG_FILE = "/home/pi/beam_logger/config.json"
-with open(CONFIG_FILE, "r") as f:
+config_path = "/home/pi/drafts2/config.json"
+with open(config_path, "r") as f:
     config = json.load(f)
 
-# Extract global and sensor settings
-node_id = config["global"]["node_id"]
-timezone_setting = config["global"]["timezone"]  # e.g., "UTC"
-base_dir = config["global"]["base_dir"]
-
 bme_config = config["bme280"]
-directory = os.path.join(base_dir, bme_config["directory"])
-file_name = bme_config["file_name"]
-os.makedirs(directory, exist_ok=True)
-file_path = os.path.join(directory, file_name)
+global_config = config["global"]
+node_id = global_config.get("node_id", "unknown-node")
 
-# Setup SPI pins from config
-CS_PIN = getattr(board, bme_config["spi"]["cs_pin"].split(".")[1])
+# SPI Pins
+spi_config = bme_config.get("spi", {})
+CS_PIN = getattr(board, spi_config.get("cs_pin", "D5"))
 spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
-cs = DigitalInOut(CS_PIN)
+cs  = DigitalInOut(CS_PIN)
 
-# Initialize BME280 over SPI
-sensor = basic.Adafruit_BME280_SPI(spi, cs, baudrate=bme_config["spi"]["baudrate"])
+# Initialize BME280
+baudrate = spi_config.get("baudrate", 100000)
+sensor = basic.Adafruit_BME280_SPI(spi, cs, baudrate=baudrate)
 
-# Read sensor values
+# Read values
 temperature = float(sensor.temperature)
 humidity = float(sensor.humidity)
 pressure = float(sensor.pressure)
 
-# Handle timestamp according to config timezone
-if timezone_setting.upper() == "UTC":
-    timestamp = datetime.now(timezone.utc).isoformat()
-else:
-    timestamp = datetime.now().astimezone().isoformat()
+# Directory and file
+directory = os.path.join(global_config.get("base_dir", "/home/pi/data"), bme_config.get("directory", "bme280"))
+os.makedirs(directory, exist_ok=True)
+file_name = bme_config.get("file_name", "env_data.json")
+file_path = os.path.join(directory, file_name)
 
-# Create new record
+# New record
 env_json_data = {
-    "timestamp": timestamp,
+    "timestamp": datetime.now(timezone.utc).isoformat(),
     "temperature_C": temperature,
     "humidity_percent": humidity,
     "pressure_hPa": pressure
 }
 
-# Load existing data or create new structure
+# Append to JSON
 try:
     if os.path.exists(file_path):
-        with open(file_path, "r") as json_file:
+        with open(file_path, "r") as f:
             try:
-                data = json.load(json_file)
+                data = json.load(f)
                 if not isinstance(data, dict) or "records" not in data:
                     data = {"node_id": node_id, "sensor": "bme280", "records": []}
             except Exception:
@@ -61,12 +58,12 @@ try:
     else:
         data = {"node_id": node_id, "sensor": "bme280", "records": []}
 
-    # Append new reading and save
     data["records"].append(env_json_data)
-    with open(file_path, "w") as json_file:
-        json.dump(data, json_file, indent=4)
 
-    print(f"Env data appended to {file_name} at {timestamp}")
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=4)
 
+    if global_config.get("print_debug", True):
+        print(f"Env data appended to {file_name} at {datetime.now(timezone.utc)}")
 except Exception as e:
     print(f"Error saving env data: {e}")
