@@ -54,6 +54,6 @@ try:
     with open(file_path, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
-    print(f"Lux data appended to {file_name} at {datetime.now()}")
+    print(f"Lux data appended to {file_name} at {datetime.now(timezone.utc)}")
 except Exception as e:
      print(f"Error saving lux data: {e}")
