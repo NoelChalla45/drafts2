@@ -1,64 +1,59 @@
-import json
-import os
-from datetime import datetime, timezone
 import board
 import adafruit_tsl2591
+import json
+from datetime import datetime, timezone
+import os
 
-# Load config
-CONFIG_FILE = "/home/pi/beam_logger/config.json"
-with open(CONFIG_FILE, "r") as f:
+# Load config file
+config_path = "/home/pi/drafts2/config.json"
+with open(config_path, "r") as f:
     config = json.load(f)
 
-# Extract global and sensor settings
-node_id = config["global"]["node_id"]
-timezone_setting = config["global"]["timezone"]
-base_dir = config["global"]["base_dir"]
-
+# Extract TSL2591 config
 tsl_config = config["tsl2591"]
-directory = os.path.join(base_dir, tsl_config["directory"])
-file_name = tsl_config["file_name"]
-os.makedirs(directory, exist_ok=True)
+global_config = config["global"]
+
+# Node ID
+node_id = global_config.get("node_id", "unknown-node")
+
+# Directory and file
+directory = os.path.join(global_config.get("base_dir", "/home/pi/data"), tsl_config.get("directory", "tsl2591"))
+file_name = tsl_config.get("file_name", "lux_data.json")
 file_path = os.path.join(directory, file_name)
 
-# Initialize sensor on I2C bus (optional bus from config)
-i2c_bus = tsl_config.get("i2c_bus", 1)  # default to 1
-i2c = board.I2C()  # You could extend to select bus dynamically
+# Create directory if needed
+os.makedirs(directory, exist_ok=True)
+
+# Initialize sensor
+i2c_bus = tsl_config.get("i2c_bus", 1)  # optional
+i2c = board.I2C()  # board.I2C() defaults to bus=1 on Pi
 sensor = adafruit_tsl2591.TSL2591(i2c)
 
-# Read sensor value
-lux = float(sensor.lux)
+# Read lux
+lux = sensor.lux
 
-# Handle timestamp according to config timezone
-if timezone_setting.upper() == "UTC":
-    timestamp = datetime.now(timezone.utc).isoformat()
-else:
-    timestamp = datetime.now().astimezone().isoformat()
-
-# New record
-lux_json_data = {
-    "timestamp": timestamp,
+# Create new record
+new_lux_data = {
+    "timestamp": datetime.now(timezone.utc).isoformat(),
     "lux": lux
 }
 
-# Load existing data or create new structure
+# Append to JSON
 try:
     if os.path.exists(file_path):
-        with open(file_path, "r") as json_file:
-            try:
-                data = json.load(json_file)
-                if not isinstance(data, dict) or "records" not in data:
-                    data = {"node_id": node_id, "sensor": "tsl2591", "records": []}
-            except Exception:
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            if not isinstance(data, dict) or "records" not in data:
                 data = {"node_id": node_id, "sensor": "tsl2591", "records": []}
     else:
         data = {"node_id": node_id, "sensor": "tsl2591", "records": []}
 
-    # Append new reading and save
-    data["records"].append(lux_json_data)
-    with open(file_path, "w") as json_file:
-        json.dump(data, json_file, indent=4)
+    data["records"].append(new_lux_data)
 
-    print(f"Lux data appended to {file_name} at {timestamp}")
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=4)
 
+    if global_config.get("print_debug", True):
+        print(f"Lux data appended to {file_name} at {datetime.now(timezone.utc)}")
 except Exception as e:
     print(f"Error saving lux data: {e}")
