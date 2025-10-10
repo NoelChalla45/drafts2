@@ -1,17 +1,17 @@
 {
   "global": {
-    "node_id": "beam-node-01",             // Unique identifier for this node
-    "base_dir": "/home/pi/data",           // Root data directory
-    "timezone": "UTC",                     // For consistent timestamps
-    "print_debug": true                    // Toggle console messages
+    "node_id": "beam-node-01",
+    "base_dir": "/home/pi/data",
+    "timezone": "UTC",
+    "print_debug": true
   },
 
   "tsl2591": {
-    "enabled": true,                       // Disable if sensor not connected
-    "directory": "tsl2591",                // Subfolder inside base_dir
-    "file_name": "lux_data.json",          // Output file name
-    "i2c_bus": 1,                          // Optional: use if not on default bus
-    "record_schema": {                     // (Optional metadata)
+    "enabled": true,
+    "directory": "tsl2591",
+    "file_name": "lux_data.json",
+    "i2c_bus": 1,
+    "record_schema": {
       "timestamp": "ISO8601",
       "lux": "float"
     }
@@ -22,10 +22,10 @@
     "directory": "bme280",
     "file_name": "env_data.json",
     "spi": {
-      "sck_pin": "board.SCK",
-      "mosi_pin": "board.MOSI",
-      "miso_pin": "board.MISO",
-      "cs_pin": "board.D5",
+      "sck_pin": "SCK",
+      "mosi_pin": "MOSI",
+      "miso_pin": "MISO",
+      "cs_pin": "D5",
       "baudrate": 100000
     },
     "record_schema": {
