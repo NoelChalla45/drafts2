@@ -1,17 +1,18 @@
 #!/bin/bash
 # ========================================
-# BATMAN-adv Automatic Setup Script
+# BATMAN-adv Automatic Setup Script (Preconfigured)
 # Tested on Debian / Raspberry Pi OS
 # ========================================
 
 set -e
 
-echo "=== BATMAN-adv Setup Script ==="
+NETWORK_NAME="myadhoc"
+FREQUENCY="2412"
+STATIC_IP="192.168.1.4/24"   # You can change the last octet if needed
 
-# --- Ask for configuration ---
-read -p "Enter ad-hoc network name (SSID): " NETWORK_NAME
-read -p "Enter frequency (e.g. 2412): " FREQUENCY
-read -p "Enter static IP for bat0 (e.g. 192.168.1.2/24): " STATIC_IP
+echo "=== BATMAN-adv Setup Script (Preconfigured) ==="
+echo "Using network: $NETWORK_NAME ($FREQUENCY MHz), IP: $STATIC_IP"
+sleep 2
 
 # --- Create BATMAN startup script ---
 echo "[1/4] Creating /usr/local/bin/start-batman.sh ..."
@@ -36,14 +37,14 @@ modprobe batman-adv
 ip link set wlan0 down
 iw dev wlan0 set type ibss
 ip link set wlan0 up
-iw dev wlan0 ibss join $NETWORK_NAME $FREQUENCY
+iw dev wlan0 ibss join myadhoc 2412
 
 # Add wlan0 to BATMAN
 batctl if add wlan0
 ip link set up dev bat0
 
 # Assign static IP
-ip addr add $STATIC_IP dev bat0
+ip addr add 192.168.1.4/24 dev bat0
 
 echo "BATMAN-adv setup complete!"
 EOF
